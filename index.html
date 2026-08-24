@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>iCD</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F1EFE9;
+    --paper-raised:#FBFAF7;
+    --ink:#1C2B39;
+    --ink-soft:#54626D;
+    --rule:#D6D0C2;
+    --rule-soft:#E4DFD3;
+    --brass:#A67C3D;
+    --steady:#3F6B54;
+    --steady-bg:#E7EEE9;
+    --caution:#A34B3D;
+    --caution-bg:#F3E7E3;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; background:#DCD8CC; font-family:'IBM Plex Mono', monospace; color:var(--ink); }
+  body{ min-height:100vh; display:flex; align-items:center; justify-content:center; padding:30px 14px; }
+  .device{ width:390px; max-width:100%; border-radius:44px; background:#0d1117; padding:12px; box-shadow:0 24px 50px -18px rgba(28,43,57,0.45); }
+  .screen{ background:var(--paper); border-radius:34px; overflow:hidden; position:relative; min-height:760px; }
+  .notch{ position:absolute; top:0; left:50%; transform:translateX(-50%); width:110px; height:24px; background:#0d1117; border-bottom-left-radius:16px; border-bottom-right-radius:16px; z-index:10; }
+  .content{ padding:44px 20px 30px; }
+  .eyebrow{ font-family:'IBM Plex Mono', monospace; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--brass); font-weight:600; }
+  .updated{ font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--ink-soft); display:flex; align-items:center; gap:6px; margin-top:6px; }
+  .dot{ width:6px; height:6px; border-radius:50%; background:var(--steady); display:inline-block; }
+  .section{ margin-top:22px; }
+  .section-head{ display:flex; align-items:baseline; justify-content:space-between; margin-bottom:10px; }
+  .section-title{ font-family:'IBM Plex Mono', monospace; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--brass); font-weight:600; }
+  .section-sub{ font-family:'IBM Plex Mono', monospace; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--brass); font-weight:600; }
+  .card{ background:var(--paper-raised); border:1px solid var(--rule-soft); border-radius:16px; overflow:hidden; }
+  .yield-row{ display:flex; align-items:center; justify-content:space-between; padding:9px 16px; border-bottom:1px solid var(--rule-soft); }
+  .yield-row.primary{ background:var(--rule-soft); }
+  .yield-row:last-child{ border-bottom:none; }
+  .yield-term{ font-family:'IBM Plex Mono', monospace; font-size:10.5px; font-weight:500; color:var(--ink); }
+  .yield-apy{ font-family:'IBM Plex Mono', monospace; font-size:11px; font-weight:600; font-variant-numeric: tabular-nums; color:var(--ink); }
+  .outlook-row{ display:flex; align-items:baseline; gap:7px; margin-bottom:10px; }
+  .outlook-arrow{ font-size:14px; color:var(--brass); font-weight:700; flex-shrink:0; line-height:1; }
+  .outlook-text{ font-family:'IBM Plex Mono', monospace; font-size:13px; font-weight:600; color:var(--ink); }
+  .path-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:14px 16px; border-bottom:1px solid var(--rule-soft); }
+  .path-row:last-of-type{ border-bottom:none; }
+  .path-row-primary{ background:var(--paper); }
+  .path-left{ flex:1; min-width:0; }
+  .path-horizon{ font-family:'IBM Plex Mono', monospace; font-size:11px; letter-spacing:0.02em; color:var(--ink-soft); }
+  .path-row-primary .path-horizon{ color:var(--brass); font-weight:600; }
+  .path-date{ font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--ink-soft); margin-top:2px; }
+  .path-right{ text-align:right; flex-shrink:0; }
+  .path-outcome{ font-family:'IBM Plex Mono', monospace; font-weight:600; font-size:16px; color:var(--ink); line-height:1.2; }
+  
+  .path-range{ font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--ink-soft); margin-top:2px; }
+  .path-prob{ font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--brass); font-weight:600; margin-top:2px; }
+  .fw-row{ display:flex; align-items:baseline; justify-content:space-between; gap:8px; padding:11px 16px; border-bottom:1px solid var(--rule-soft); flex-wrap:wrap; }
+  .fw-row:last-of-type{ border-bottom:none; }
+  .fw-row.primary{ background:var(--paper); }
+  .fw-left{ font-size:11px; color:var(--ink-soft); }
+  .fw-row.primary .fw-left{ color:var(--brass); font-weight:600; }
+  .fw-right{ font-size:12px; color:var(--ink); text-align:right; margin-left:auto; }
+  .fw-right b{ font-weight:600; }
+  .fw-right .fw-prob{ color:var(--brass); font-weight:600; }
+  .br-card{ padding:16px; }
+  .br-top{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px; }
+  .br-pub{ font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--ink-soft); flex-shrink:0; }
+  .br-pill{ display:inline-block; font-family:'IBM Plex Mono', monospace; font-size:11px; letter-spacing:0.06em; text-transform:uppercase; font-weight:600; padding:4px 10px; border-radius:999px; background:var(--steady-bg); color:var(--steady); }
+  .br-pill.rising, .br-pill.mixed{ background:#F3EEE0; color:var(--brass); }
+  .br-pill.declining{ background:var(--caution-bg); color:var(--caution); }
+  .br-text{ font-family:'IBM Plex Mono', monospace; font-size:13px; line-height:1.55; color:var(--ink); }
+  .footnote{ margin-top:22px; padding-top:12px; border-top:1px solid var(--rule); font-family:'IBM Plex Mono', monospace; font-size:11px; line-height:1.6; color:var(--ink-soft); }
+  .loading{ padding:60px 20px; text-align:center; font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--ink-soft); }
+  .update-bar{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:14px; padding:12px; background:var(--paper-raised); border:1px solid var(--rule-soft); border-radius:16px; }
+  .model-toggle{ display:flex; flex-direction:column; gap:8px; margin-top:12px; padding:12px; background:var(--paper-raised); border:1px solid var(--rule-soft); border-radius:16px; }
+  .model-toggle-label{ font-size:9.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--ink-soft); text-align:center; display:block; }
+  .model-toggle-btns{ display:flex; gap:6px; }
+  .model-btn{ flex:1; font-family:'IBM Plex Mono', monospace; font-size:10.5px; font-weight:600; color:var(--ink-soft); background:var(--paper-raised); border:1px solid var(--rule); border-radius:999px; padding:7px 8px; cursor:pointer; white-space:nowrap; text-align:center; }
+  .model-btn.active{ background:var(--brass); color:#FBFAF7; border-color:var(--brass); }
+  .case-card{ padding:16px; }
+  .case-intro{ margin:0 0 12px; font-size:11px; color:var(--ink-soft); line-height:1.5; }
+  .case-result{ min-height:20px; margin-bottom:12px; font-size:13px; color:var(--ink); line-height:1.55; }
+  .case-placeholder{ color:var(--ink-soft); font-style:italic; }
+  .case-btn{ display:flex; align-items:center; justify-content:center; gap:7px; flex:1; font-family:'IBM Plex Mono', monospace; font-size:11px; font-weight:600; color:var(--ink); background:var(--paper); border:1px solid var(--rule); border-radius:999px; padding:8px 12px; cursor:pointer; }
+  .case-btn:disabled{ opacity:0.6; cursor:default; }
+  .case-btn-row{ display:flex; gap:8px; }
+  .copy-btn{ display:flex; align-items:center; justify-content:center; gap:6px; font-family:'IBM Plex Mono', monospace; font-size:11px; font-weight:600; color:var(--ink); background:var(--paper-raised); border:1px solid var(--rule); border-radius:999px; padding:8px 14px; cursor:pointer; flex-shrink:0; }
+  .copy-btn.copied{ background:var(--steady-bg); color:var(--steady); border-color:var(--steady); }
+  .source-link{ display:block; margin-top:10px; font-family:'IBM Plex Mono', monospace; font-size:10px; color:var(--ink-soft); text-decoration:none; }
+  .source-link:hover{ color:var(--brass); text-decoration:underline; }
+  .case-manual-ta{ width:100%; margin-top:10px; padding:8px; font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--ink); background:var(--paper); border:1px solid var(--brass); border-radius:8px; resize:none; min-height:70px; }
+  .update-label{ font-family:'IBM Plex Mono', monospace; font-size:11px; letter-spacing:0.06em; text-transform:uppercase; color:var(--ink-soft); }
+  .refresh-btn{ display:flex; align-items:center; gap:7px; font-family:'IBM Plex Mono', monospace; font-size:11px; font-weight:600; color:var(--ink); background:var(--paper-raised); border:1px solid var(--rule); border-radius:999px; padding:6px 12px; cursor:pointer; }
+  .refresh-btn:disabled{ opacity:0.6; cursor:default; }
+  .status-dot{ width:9px; height:9px; border-radius:50%; background:#9a958a; flex-shrink:0; transition:background 0.2s; }
+  .status-dot.busy{ background:#B23B2E; }
+  .status-dot.ok{ background:#3F6B54; }
+  .status-dot.err{ background:#B23B2E; }
+  .update-msg{ font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--ink-soft); margin-top:6px; text-align:center; }
+  .range-card{ padding:16px; }
+  .range-labels{ display:flex; justify-content:space-between; align-items:baseline; }
+  .range-item{ display:flex; flex-direction:column; }
+  .range-item-high{ align-items:flex-end; }
+  .range-tag{ font-size:11px; color:var(--ink-soft); letter-spacing:0.06em; text-transform:uppercase; }
+  .range-val{ font-size:16px; font-weight:600; color:var(--ink); margin-top:2px; }
+  .range-track{ position:relative; height:6px; background:var(--rule-soft); border-radius:3px; margin:14px 6px 4px; }
+  .range-fill{ position:absolute; left:0; right:0; top:0; bottom:0; background:var(--brass); border-radius:3px; }
+  .range-dot{ position:absolute; top:50%; width:13px; height:13px; border-radius:50%; background:var(--paper-raised); border:2.5px solid var(--brass); transform:translate(-50%,-50%); }
+  .range-stats{ display:flex; justify-content:center; gap:16px; margin-top:12px; }
+  .range-stat{ font-size:11px; color:var(--ink-soft); }
+  .range-stat b{ color:var(--ink); font-weight:600; }
+  .range-median-tri{ position:absolute; top:-6px; width:0; height:0; border-left:5px solid transparent; border-right:5px solid transparent; border-top:7px solid var(--steady); transform:translateX(-50%); z-index:2; }
+  .range-legend{ display:flex; justify-content:center; gap:16px; margin-top:12px; }
+  .quick-rule{ display:flex; align-items:baseline; gap:6px; margin-top:12px; padding-top:12px; border-top:1px solid var(--rule-soft); }
+  .quick-rule-arrow{ font-size:12px; color:var(--brass); font-weight:700; flex-shrink:0; }
+  .quick-rule-text{ font-size:11px; color:var(--ink-soft); line-height:1.4; }
+  .quick-rule-text b{ color:var(--ink); font-weight:600; }
+  .legend-item{ display:flex; align-items:center; gap:5px; font-size:11px; color:var(--ink-soft); }
+  .legend-item b{ color:var(--ink); font-weight:600; }
+  .legend-item.median b{ color:var(--steady); }
+  .legend-tri{ width:0; height:0; border-left:4px solid transparent; border-right:4px solid transparent; border-top:6px solid var(--steady); flex-shrink:0; }
+  .heatmap{ padding:12px 14px; }
+  .heat-header{ display:grid; grid-template-columns:1fr 42px 42px 42px; gap:5px; margin-bottom:6px; }
+  .heat-header span{ font-size:10px; letter-spacing:0.04em; text-transform:uppercase; color:var(--ink-soft); text-align:center; }
+  .heat-header span:first-child{ text-align:left; }
+  .heat-row{ display:grid; grid-template-columns:1fr 42px 42px 42px; gap:5px; align-items:center; margin-bottom:5px; }
+  .heat-row:last-child{ margin-bottom:0; }
+  .heat-label{ font-size:10.5px; color:var(--ink-soft); line-height:1.3; }
+  .heat-row.primary .heat-label{ color:var(--brass); font-weight:600; }
+  .heat-cell{ text-align:center; font-size:11px; font-weight:500; color:var(--ink-soft); background:var(--rule-soft); padding:6px 2px; border-radius:6px; }
+  .heat-cell.top{ background:var(--steady); color:#F7F5EF; font-weight:700; }
+  .heat-legend{ margin-top:10px; padding-top:10px; border-top:1px solid var(--rule-soft); text-align:center; }
+  .heat-legend-label{ font-size:9.5px; color:var(--ink-soft); letter-spacing:0.02em; }
+</style>
+</head>
+<body>
+
+<div class="device">
+  <div class="screen">
+    <div class="notch"></div>
+    <div class="content" id="app">
+      <div class="loading">Loading snapshot…</div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAyC_xDU5MQRFckWZCgSB8mzfeCJZ1X6rM",
+  authDomain: "icd-cd-monitor.firebaseapp.com",
+  projectId: "icd-cd-monitor",
+  storageBucket: "icd-cd-monitor.firebasestorage.app",
+  messagingSenderId: "654515474241",
+  appId: "1:654515474241:web:f728c6ce3e8f79a3d4dbc0"
+};
+
+const firebaseApp = initializeApp(firebaseConfig);
+const db = getFirestore(firebaseApp);
+window.__firestore = { db, doc, getDoc };
+// Firebase config and initialization (see bottom of file for the module setup).
+const FUNCTIONS_BASE = {
+  updateSnapshot: "https://updatesnapshot-unx5ssbpva-uc.a.run.app",
+  generateCase: "https://us-central1-icd-cd-monitor.cloudfunctions.net/generateCase"
+};
+
+function pillClass(pill) {
+  const p = (pill || "").toLowerCase();
+  if (p === "declining") return "declining";
+  if (p === "rising" || p === "mixed") return "mixed";
+  return "";
+}
+
+function outlookArrow(direction) {
+  if (direction === "higher") return "&#8593;";
+  if (direction === "flat") return "&#8594;";
+  return "&#8595;";
+}
+
+const TILT_THRESHOLD = 8;
+
+// MODEL A — "Endpoint tilt": compares the net lean (hike% − cut%) at the very
+// next meeting against the net lean 12 months out. Answers: "is the pull on
+// rates, apart from Hold, shifting direction between now and 12 months out?"
+function deriveOutlookCustomer(fedwatch) {
+  const lean = p => p.hike - p.cut;
+  const nextLean = lean(fedwatch[0].probs);
+  const farLean = lean(fedwatch[fedwatch.length - 1].probs);
+  const shift = farLean - nextLean;
+
+  const topAtAll = fedwatch.every(row => {
+    const p = row.probs;
+    return Object.keys(p).reduce((a, b) => p[a] >= p[b] ? a : b) === "hold";
+  });
+
+  let direction, tilt;
+  if (Math.abs(shift) < TILT_THRESHOLD) {
+    direction = "flat";
+    tilt = "holding steady";
+  } else if (shift < 0) {
+    direction = "lower";
+    tilt = "toward a cut";
+  } else {
+    direction = "higher";
+    tilt = "toward a hike";
+  }
+
+  const text = direction === "flat"
+    ? (topAtAll
+        ? "Hold remains most likely at every horizon — odds are roughly steady out to 12 months."
+        : "Odds are roughly steady out to 12 months, with no clear directional shift.")
+    : (topAtAll
+        ? `Hold remains most likely throughout, though the odds tilt ${tilt} by the 12-month mark.`
+        : `Odds tilt increasingly ${tilt} by the 12-month mark.`);
+
+  return { direction, tilt, text };
+}
+
+// MODEL B — "Executive blended average": the question a CD-pricing executive
+// actually asks isn't "what changes between two points" — it's "what's the
+// probability-weighted expected pressure on rates averaged across the CD's
+// ENTIRE 12-month holding period." Averages the net lean across all three
+// horizons into one blended read, rather than comparing two endpoints.
+function deriveOutlookExecutive(fedwatch) {
+  const lean = p => p.hike - p.cut;
+  const leans = fedwatch.map(row => lean(row.probs));
+  const avg = leans.reduce((a, b) => a + b, 0) / leans.length;
+
+  let direction, tilt;
+  if (Math.abs(avg) < TILT_THRESHOLD) {
+    direction = "flat";
+    tilt = "holding steady";
+  } else if (avg < 0) {
+    direction = "lower";
+    tilt = "toward a cut";
+  } else {
+    direction = "higher";
+    tilt = "toward a hike";
+  }
+
+  const text = direction === "flat"
+    ? "Averaged across the full 12-month holding period, expected rate pressure is roughly balanced — no strong lean either way."
+    : `Averaged across the full 12-month holding period, expected rate pressure tilts ${tilt} overall.`;
+
+  return { direction, tilt, text };
+}
+
+const OUTLOOK_MODELS = {
+  customer: { label: "Bank Customer", fn: deriveOutlookCustomer },
+  executive: { label: "Bank Executive", fn: deriveOutlookExecutive }
+};
+let currentOutlookModel = "customer";
+let lastLoadedData = null;
+let lastCaseText = null;
+
+function quickRuleText(outlook, median) {
+  if (outlook.direction === "flat") {
+    return `Don't take less than <b>${median}</b> — Fed rates holding steady, no urgency either way.`;
+  }
+  const urgency = outlook.direction === "lower" ? "worth locking in soon" : "worth holding out for more";
+  return `Don't take less than <b>${median}</b> — Fed odds tilt ${outlook.tilt}, ${urgency}.`;
+}
+
+function setOutlookModel(key) {
+  currentOutlookModel = key;
+  if (lastLoadedData) render(lastLoadedData);
+  if (key === "executive") {
+    generateCase();
+  }
+}
+
+async function loadSnapshot() {
+  const { db, doc, getDoc } = window.__firestore;
+  const snap = await getDoc(doc(db, "icd", "snapshot"));
+  if (!snap.exists()) return null;
+  const data = snap.data();
+  // A fresh document created before any real Update has ever run (see the
+  // security-rules setup) only has a placeholder field -- treat that as "no
+  // real data yet" too, not as a snapshot to render.
+  if (!data.yields || !data.fedwatch || !data.bankrate) return null;
+  return data;
+}
+
+function render(data) {
+  lastLoadedData = data;
+  const outlook = OUTLOOK_MODELS[currentOutlookModel].fn(data.fedwatch);
+  const parsePct = s => parseFloat(String(s).replace('%', '')) || 0;
+  const rLow = parsePct(data.range12mo.low);
+  const rHigh = parsePct(data.range12mo.high);
+  const rMedian = parsePct(data.range12mo.median);
+  const posOnTrack = v => {
+    if (rHigh === rLow) return 50;
+    const p = ((v - rLow) / (rHigh - rLow)) * 100;
+    return Math.max(2, Math.min(98, p));
+  };
+  const medianPos = posOnTrack(rMedian);
+
+  const yieldsHtml = data.yields.map(y =>
+    `<div class="yield-row ${y.term === '12-Month' ? 'primary' : ''}"><span class="yield-term">${y.term}</span><span class="yield-apy">${y.apy}</span></div>`
+  ).join("");
+
+  const fedwatchRows = data.fedwatch.map((row, i) => {
+    const p = row.probs;
+    const top = Object.keys(p).reduce((a, b) => p[a] >= p[b] ? a : b);
+    const cellHtml = key => `<span class="heat-cell ${key === top ? 'top' : ''}">${p[key]}%</span>`;
+    return `
+    <div class="heat-row ${i === 0 ? 'primary' : ''}">
+      <span class="heat-label" title="${row.date}">${row.horizon} · ${row.date.split('–')[0].split(',')[0]}</span>
+      ${cellHtml('cut')}
+      ${cellHtml('hold')}
+      ${cellHtml('hike')}
+    </div>`;
+  }).join("");
+
+  document.getElementById("app").innerHTML = `
+    <div class="eyebrow">CD Information Assistant</div>
+    <div class="updated"><span class="dot"></span>Last updated ${data.updated}</div>
+
+    <div class="model-toggle">
+      <span class="model-toggle-label">Persona</span>
+      <div class="model-toggle-btns">
+        <button class="model-btn ${currentOutlookModel === 'customer' ? 'active' : ''}" onclick="setOutlookModel('customer')">Bank Customer</button>
+        <button class="model-btn ${currentOutlookModel === 'executive' ? 'active' : ''}" onclick="setOutlookModel('executive')">Bank Executive</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <div class="section-title">12-Month CDs</div>
+        <div class="section-sub">Today's Range</div>
+      </div>
+      <div class="card range-card">
+        <div class="range-labels">
+          <div class="range-item">
+            <span class="range-tag">Low</span>
+            <span class="range-val">${data.range12mo.low}</span>
+          </div>
+          <div class="range-item range-item-high">
+            <span class="range-tag">High</span>
+            <span class="range-val">${data.range12mo.high}</span>
+          </div>
+        </div>
+        <div class="range-track">
+          <div class="range-fill"></div>
+          <div class="range-dot" style="left:0%"></div>
+          <div class="range-dot" style="left:100%"></div>
+          <div class="range-median-tri" style="left:${medianPos}%" title="Median"></div>
+        </div>
+        <div class="range-legend">
+          <span class="legend-item median"><span class="legend-tri"></span>Median <b>${data.range12mo.median}</b></span>
+        </div>
+        <div class="quick-rule">
+          <span class="quick-rule-arrow">${outlookArrow(outlook.direction)}</span>
+          <span class="quick-rule-text">${quickRuleText(outlook, data.range12mo.median)}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <div class="section-title">Fidelity</div>
+        <div class="section-sub">Highest Yield</div>
+      </div>
+      <div class="card">${yieldsHtml}</div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <div class="section-title">FedWatch</div>
+        <div class="section-sub">Current: ${data.currentFedRate}</div>
+      </div>
+      <div class="outlook-row">
+        <span class="outlook-arrow">${outlookArrow(outlook.direction)}</span>
+        <span class="outlook-text">12-month outlook: ${outlook.text}</span>
+      </div>
+      <div class="card heatmap">
+        <div class="heat-header">
+          <span></span>
+          <span>Cut</span>
+          <span>Hold</span>
+          <span>Hike</span>
+        </div>
+        ${fedwatchRows}
+      </div>
+    </div>
+
+    ${currentOutlookModel === 'executive' ? `
+    <div class="section">
+      <div class="section-head">
+        <div class="section-title">Case For Higher Rate</div>
+        <div class="section-sub">Your Talking Points</div>
+      </div>
+      <div class="card case-card">
+
+        <div id="caseResult" class="case-result">${lastCaseText ? lastCaseText : '<span class="case-placeholder">Tap Generate to build your case using current numbers.</span>'}</div>
+        <div class="case-btn-row">
+          <button class="case-btn" id="caseBtn" onclick="generateCase()">
+            <span class="status-dot" id="caseDot"></span>
+            <span id="caseLabel">${lastCaseText ? 'Regenerate Case' : 'Generate Case'}</span>
+          </button>
+          ${lastCaseText ? `<button class="copy-btn" id="copyBtn" onclick="copyCase()"><span id="copyLabel">Copy</span></button>` : ''}
+        </div>
+
+      </div>
+    </div>
+    ` : `
+    <div class="section">
+      <div class="section-head">
+        <div class="section-title">Bankrate Forecast</div>
+      </div>
+      <div class="card br-card">
+        <div class="br-top">
+          <span class="br-pill ${pillClass(data.bankrate.pill)}">${data.bankrate.pill}</span>
+          <span class="br-pub">${data.bankrate.published}</span>
+        </div>
+        <div class="br-text">${data.bankrate.text}</div>
+      </div>
+    </div>
+    `}
+
+    <div class="footnote">
+      SNAPSHOT ONLY — NO HISTORY STORED<br>
+      NOT INVESTMENT, TAX, OR LEGAL ADVICE
+    </div>
+
+    <div class="update-bar">
+      <span class="update-label">Snapshot</span>
+      <button class="refresh-btn" id="refreshBtn" onclick="refreshSnapshot()">
+        <span class="status-dot" id="statusDot"></span>
+        <span id="refreshLabel">Update</span>
+      </button>
+    </div>
+    <div class="update-msg" id="testMsg"></div>
+  `;
+}
+
+function copyCase() {
+  const btn = document.getElementById("copyBtn");
+  const label = document.getElementById("copyLabel");
+  if (!lastCaseText || !btn) return;
+
+  const SOURCE_URL = "https://www.cmegroup.com/markets/interest-rates/cme-fedwatch-tool.html";
+  const copyText = `${lastCaseText}\n\nSource: FedWatch - CME Group — ${SOURCE_URL}`;
+
+  function flashCopied(text, isSuccess) {
+    if (isSuccess) btn.classList.add("copied");
+    label.textContent = text;
+    setTimeout(() => {
+      btn.classList.remove("copied");
+      label.textContent = "Copy";
+    }, isSuccess ? 1600 : 2500);
+  }
+
+  function legacyCopy() {
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = copyText;
+      ta.style.position = "fixed";
+      ta.style.left = "-9999px";
+      ta.style.top = "0";
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      const ok = document.execCommand("copy");
+      document.body.removeChild(ta);
+      return ok;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function selectForManualCopy() {
+    // Leave a visible, pre-selected textarea containing the full text (case +
+    // source) so the person can copy it by hand even when both programmatic
+    // methods are blocked — more reliable than selecting rendered page text,
+    // since it guarantees the source line is included either way.
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = copyText;
+      ta.className = "case-manual-ta";
+      ta.readOnly = true;
+      const card = btn.closest(".case-card");
+      if (card) card.appendChild(ta);
+      ta.focus();
+      ta.select();
+    } catch (e) { /* ignore */ }
+    flashCopied("Selected below — press Cmd+C", false);
+  }
+
+  // Try the modern Clipboard API first.
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(copyText).then(() => {
+      flashCopied("Copied!", true);
+    }).catch(() => {
+      // Fall back to the older execCommand method, common inside sandboxed iframes
+      // where the Clipboard API is blocked by permissions policy.
+      if (legacyCopy()) {
+        flashCopied("Copied!", true);
+      } else {
+        selectForManualCopy();
+      }
+    });
+  } else if (legacyCopy()) {
+    flashCopied("Copied!", true);
+  } else {
+    selectForManualCopy();
+  }
+}
+
+async function generateCase() {
+  const btn = document.getElementById("caseBtn");
+  const dot = document.getElementById("caseDot");
+  const label = document.getElementById("caseLabel");
+
+  if (!lastLoadedData) return;
+  const r = lastLoadedData.range12mo;
+  const outlook = OUTLOOK_MODELS.executive.fn(lastLoadedData.fedwatch);
+
+  btn.disabled = true;
+  dot.className = "status-dot busy";
+  label.textContent = "Generating…";
+
+  try {
+    const response = await fetch(FUNCTIONS_BASE.generateCase, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ low: r.low, high: r.high, median: r.median, outlookText: outlook.text })
+    });
+    const result = await response.json();
+    if (!result.ok || !result.text) throw new Error(result.error || "No case text returned");
+
+    lastCaseText = result.text;
+    render(lastLoadedData);
+  } catch (err) {
+    lastCaseText = null;
+    render(lastLoadedData);
+    const freshResult = document.getElementById("caseResult");
+    if (freshResult) {
+      freshResult.innerHTML = `<span class="case-placeholder">Generation failed — try again. (${err.message})</span>`;
+    }
+  }
+}
+
+async function refreshSnapshot() {
+  const btn = document.getElementById("refreshBtn");
+  const dot = document.getElementById("statusDot");
+  const label = document.getElementById("refreshLabel");
+  const msg = document.getElementById("testMsg");
+
+  btn.disabled = true;
+  dot.className = "status-dot busy";
+  label.textContent = "Updating…";
+  msg.textContent = "";
+
+  try {
+    const response = await fetch(FUNCTIONS_BASE.updateSnapshot, { method: "POST" });
+    const result = await response.json();
+    if (!result.ok) throw new Error(result.error || "Update failed");
+
+    // The function already wrote the fresh snapshot to Firestore -- read it
+    // back so the app displays exactly what's now stored, not a guess.
+    const fresh = await loadSnapshot();
+    if (!fresh) throw new Error("Update succeeded but snapshot could not be reloaded");
+
+    render(fresh);
+    document.getElementById("statusDot").className = "status-dot ok";
+    document.getElementById("testMsg").textContent = "Updated successfully.";
+  } catch (err) {
+    dot.className = "status-dot err";
+    label.textContent = "Update";
+    btn.disabled = false;
+    msg.textContent = "Update failed — kept the last snapshot. (" + err.message + ")";
+  }
+}
+
+(async () => {
+  try {
+    const data = await loadSnapshot();
+    if (!data) {
+      document.getElementById("app").innerHTML = `
+        <div class="eyebrow">CD Information Assistant</div>
+        <div class="loading" style="padding-top:80px;">
+          No snapshot yet.<br><br>
+          Press Update below to pull today's numbers for the first time.
+        </div>
+        <div class="update-bar" style="margin-top:24px;">
+          <span class="update-label">Snapshot</span>
+          <button class="refresh-btn" id="refreshBtn" onclick="refreshSnapshot()">
+            <span class="status-dot" id="statusDot"></span>
+            <span id="refreshLabel">Update</span>
+          </button>
+        </div>
+        <div class="update-msg" id="testMsg"></div>
+      `;
+      return;
+    }
+    render(data);
+  } catch (err) {
+    document.getElementById("app").innerHTML = `<div class="loading">Couldn't load the snapshot. (${err.message})</div>`;
+  }
+})();
+
+// The onclick attributes in render() resolve against the global scope, but
+// this script is a module (needed for the Firebase imports below), and
+// module-level functions aren't automatically global -- so they're attached
+// to window explicitly here.
+window.setOutlookModel = setOutlookModel;
+window.generateCase = generateCase;
+window.copyCase = copyCase;
+window.refreshSnapshot = refreshSnapshot;
+
+</script>
+
+</body>
+</html>
