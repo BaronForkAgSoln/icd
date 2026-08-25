@@ -286,6 +286,19 @@ async function loadSnapshot() {
 }
 
 function render(data) {
+  // Extracts "Sep 16" from "Sep 15–16, 2026" (or "Sep 16" from "Sep 16, 2026"
+  // if there's no range) -- CME associates its probability data with the
+  // meeting's announcement day, which is the LAST day of a multi-day meeting,
+  // not the first. Showing the first day was a real bug caught during testing.
+  const shortMeetingDate = dateStr => {
+    const monthDayPart = String(dateStr).split(',')[0].trim();
+    const spaceIdx = monthDayPart.indexOf(' ');
+    if (spaceIdx === -1) return monthDayPart;
+    const month = monthDayPart.slice(0, spaceIdx);
+    const dayPart = monthDayPart.slice(spaceIdx + 1);
+    const lastDay = dayPart.split('–').pop().split('-').pop().trim();
+    return `${month} ${lastDay}`;
+  };
   lastLoadedData = data;
   const outlook = OUTLOOK_MODELS[currentOutlookModel].fn(data.fedwatch);
   const parsePct = s => parseFloat(String(s).replace('%', '')) || 0;
@@ -309,7 +322,7 @@ function render(data) {
     const cellHtml = key => `<span class="heat-cell ${key === top ? 'top' : ''}">${p[key]}%</span>`;
     return `
     <div class="heat-row ${i === 0 ? 'primary' : ''}">
-      <span class="heat-label" title="${row.date}">${row.horizon} · ${row.date.split('–')[0].split(',')[0]}</span>
+      <span class="heat-label" title="${row.date}">${row.horizon} · ${shortMeetingDate(row.date)}</span>
       ${cellHtml('cut')}
       ${cellHtml('hold')}
       ${cellHtml('hike')}
