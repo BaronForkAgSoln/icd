@@ -330,7 +330,7 @@ function render(data) {
   }).join("");
 
   document.getElementById("app").innerHTML = `
-    <div class="eyebrow">CD Information Assistant</div>
+    <div class="eyebrow">CD Assistant</div>
     <div class="updated"><span class="dot"></span>Last updated ${data.updated}</div>
 
     <div class="model-toggle">
@@ -434,11 +434,6 @@ function render(data) {
       </div>
     </div>
     `}
-
-    <div class="footnote">
-      SNAPSHOT ONLY — NO HISTORY STORED<br>
-      NOT INVESTMENT, TAX, OR LEGAL ADVICE
-    </div>
 
     <div class="update-bar">
       <span class="update-label">Snapshot</span>
@@ -595,7 +590,7 @@ async function refreshSnapshot() {
     const data = await loadSnapshot();
     if (!data) {
       document.getElementById("app").innerHTML = `
-        <div class="eyebrow">CD Information Assistant</div>
+        <div class="eyebrow">CD Assistant</div>
         <div class="loading" style="padding-top:80px;">
           No snapshot yet.<br><br>
           Press Update below to pull today's numbers for the first time.
