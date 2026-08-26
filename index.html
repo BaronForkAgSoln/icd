@@ -585,7 +585,7 @@ async function refreshSnapshot() {
   }
 }
 
-(async () => {
+async function loadAndRender() {
   try {
     const data = await loadSnapshot();
     if (!data) {
@@ -610,7 +610,37 @@ async function refreshSnapshot() {
   } catch (err) {
     document.getElementById("app").innerHTML = `<div class="loading">Couldn't load the snapshot. (${err.message})</div>`;
   }
-})();
+}
+
+// iOS often freezes a home-screen web app in the background rather than
+// closing it, then silently resumes the exact same frozen page later --
+// without ever re-fetching data. Left alone, that means reopening the app
+// can show stale numbers even though Update was pressed elsewhere in the
+// meantime. Re-running loadAndRender() whenever the app becomes visible
+// again fixes this permanently, so it's never something to think about.
+let isResumeRefreshing = false;
+async function refreshOnResume() {
+  if (isResumeRefreshing) return;
+  isResumeRefreshing = true;
+  try {
+    await loadAndRender();
+  } finally {
+    isResumeRefreshing = false;
+  }
+}
+
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") refreshOnResume();
+});
+
+// A second, complementary signal -- covers cases where the browser restores
+// the page from its own back-forward cache rather than firing a visibility
+// change (event.persisted marks a page shown from that cache, not a fresh load).
+window.addEventListener("pageshow", (event) => {
+  if (event.persisted) refreshOnResume();
+});
+
+loadAndRender();
 
 // The onclick attributes in render() resolve against the global scope, but
 // this script is a module (needed for the Firebase imports below), and
