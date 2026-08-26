@@ -72,6 +72,32 @@
   .br-pill.declining{ background:var(--caution-bg); color:var(--caution); }
   .br-text{ font-family:'IBM Plex Mono', monospace; font-size:13px; line-height:1.55; color:var(--ink); }
   .footnote{ margin-top:22px; padding-top:12px; border-top:1px solid var(--rule); font-family:'IBM Plex Mono', monospace; font-size:11px; line-height:1.6; color:var(--ink-soft); }
+  .header-row{ display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
+  .header-refresh-btn{ flex-shrink:0; width:34px; height:34px; border-radius:50%; border:1.5px solid var(--brass); background:var(--paper-raised); color:var(--brass); font-size:16px; display:flex; align-items:center; justify-content:center; cursor:pointer; margin-top:1px; }
+  .header-refresh-btn:disabled{ opacity:0.6; cursor:default; }
+  .header-refresh-btn.ok{ border-color:var(--steady); color:var(--steady); }
+  .header-refresh-btn.err{ border-color:var(--caution); color:var(--caution); }
+  .header-refresh-icon.spinning{ display:inline-block; animation:spin 0.8s linear infinite; }
+  @keyframes spin{ from{ transform:rotate(0deg); } to{ transform:rotate(360deg); } }
+  .ask-cta-btn{ display:flex; align-items:center; justify-content:center; gap:8px; width:100%; margin-top:16px; padding:13px; font-family:'IBM Plex Mono', monospace; font-size:13px; font-weight:600; color:var(--brass); background:var(--paper-raised); border:1.5px solid var(--brass); border-radius:16px; cursor:pointer; }
+  .ask-back-btn{ font-family:'IBM Plex Mono', monospace; font-size:11px; font-weight:600; color:var(--ink-soft); background:var(--paper-raised); border:1px solid var(--rule); border-radius:999px; padding:6px 12px; cursor:pointer; margin-bottom:14px; }
+  .ask-title{ font-family:'IBM Plex Mono', monospace; font-size:16px; font-weight:600; color:var(--ink); margin-bottom:14px; }
+  .ask-card{ padding:16px; }
+  .ask-label{ font-family:'IBM Plex Mono', monospace; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--brass); font-weight:600; margin-bottom:8px; }
+  .ask-question-title{ font-family:'IBM Plex Mono', monospace; font-size:13px; font-weight:600; color:var(--ink); margin-bottom:4px; }
+  .ask-subtitle{ font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--ink-soft); line-height:1.5; margin-bottom:12px; }
+  .ask-textarea{ width:100%; min-height:64px; padding:10px; font-family:'IBM Plex Mono', monospace; font-size:13px; color:var(--ink); background:var(--paper); border:1.5px solid var(--brass); border-radius:10px; resize:vertical; margin-bottom:10px; box-sizing:border-box; }
+  .ask-submit-btn{ width:100%; padding:11px; font-family:'IBM Plex Mono', monospace; font-size:13px; font-weight:600; color:#FBFAF7; background:var(--brass); border:none; border-radius:999px; cursor:pointer; }
+  .ask-submit-btn:disabled{ opacity:0.6; cursor:default; }
+  .ask-answer-card{ margin-top:14px; padding-top:14px; border-top:1px solid var(--rule-soft); font-size:13px; color:var(--ink); line-height:1.55; }
+  .ask-recent-header{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .ask-clear-link{ font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--ink-soft); cursor:pointer; text-decoration:underline; }
+  .ask-recent-item{ display:flex; align-items:center; gap:10px; padding:11px 16px; border-bottom:1px solid var(--rule-soft); }
+  .ask-recent-item:last-child{ border-bottom:none; }
+  .ask-reuse-icon{ flex-shrink:0; font-size:14px; color:var(--brass); cursor:pointer; }
+  .ask-recent-text{ flex:1; font-size:12px; color:var(--ink); cursor:pointer; line-height:1.4; }
+  .ask-delete-icon{ flex-shrink:0; font-size:15px; color:var(--ink-soft); cursor:pointer; padding:2px 4px; }
+  .ask-recent-empty{ padding:16px; font-size:12px; color:var(--ink-soft); font-style:italic; text-align:center; }
   .loading{ padding:60px 20px; text-align:center; font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--ink-soft); }
   .update-bar{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:14px; padding:12px; background:var(--paper-raised); border:1px solid var(--rule-soft); border-radius:16px; }
   .model-toggle{ display:flex; flex-direction:column; gap:8px; margin-top:12px; padding:12px; background:var(--paper-raised); border:1px solid var(--rule-soft); border-radius:16px; }
@@ -165,7 +191,8 @@ window.__firestore = { db, doc, getDoc };
 // Firebase config and initialization (see bottom of file for the module setup).
 const FUNCTIONS_BASE = {
   updateSnapshot: "https://updatesnapshot-unx5ssbpva-uc.a.run.app",
-  generateCase: "https://us-central1-icd-cd-monitor.cloudfunctions.net/generateCase"
+  generateCase: "https://generatecase-unx5ssbpva-uc.a.run.app",
+  askFinancialQuestion: "https://us-central1-icd-cd-monitor.cloudfunctions.net/askFinancialQuestion"
 };
 
 function pillClass(pill) {
@@ -256,6 +283,9 @@ const OUTLOOK_MODELS = {
 let currentOutlookModel = "customer";
 let lastLoadedData = null;
 let lastCaseText = null;
+let currentView = "dashboard"; // 'dashboard' | 'ask'
+let lastAskQuestion = "";
+let lastAskAnswerText = null;
 
 function quickRuleText(outlook, median) {
   if (outlook.direction === "flat") {
@@ -330,8 +360,16 @@ function render(data) {
   }).join("");
 
   document.getElementById("app").innerHTML = `
-    <div class="eyebrow">CD Assistant</div>
-    <div class="updated"><span class="dot"></span>Last updated ${data.updated}</div>
+    <div class="header-row">
+      <div>
+        <div class="eyebrow">CD Assistant</div>
+        <div class="updated"><span class="dot"></span>Last updated ${data.updated}</div>
+      </div>
+      <button class="header-refresh-btn" id="refreshBtn" onclick="refreshSnapshot()" title="Update">
+        <span class="header-refresh-icon" id="refreshIcon">&#8635;</span>
+      </button>
+    </div>
+    <div class="update-msg" id="testMsg"></div>
 
     <div class="model-toggle">
       <span class="model-toggle-label">Persona</span>
@@ -435,14 +473,7 @@ function render(data) {
     </div>
     `}
 
-    <div class="update-bar">
-      <span class="update-label">Snapshot</span>
-      <button class="refresh-btn" id="refreshBtn" onclick="refreshSnapshot()">
-        <span class="status-dot" id="statusDot"></span>
-        <span id="refreshLabel">Update</span>
-      </button>
-    </div>
-    <div class="update-msg" id="testMsg"></div>
+    <button class="ask-cta-btn" onclick="showAskScreen()">$ Ask a Financial Question</button>
   `;
 }
 
@@ -553,16 +584,131 @@ async function generateCase() {
   }
 }
 
+// ---- Ask a Financial Question -- general education only, no personal advice ----
+const RECENT_KEY = "icd_recent_questions";
+
+function getRecentQuestions() {
+  try { return JSON.parse(localStorage.getItem(RECENT_KEY) || "[]"); } catch (e) { return []; }
+}
+function saveRecentQuestions(arr) {
+  try { localStorage.setItem(RECENT_KEY, JSON.stringify(arr.slice(0, 5))); } catch (e) { /* ignore */ }
+}
+function addRecentQuestion(q) {
+  const arr = getRecentQuestions().filter(x => x.toLowerCase() !== q.toLowerCase());
+  arr.unshift(q);
+  saveRecentQuestions(arr);
+}
+
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+function showAskScreen() {
+  currentView = "ask";
+  renderAskScreen();
+}
+function showDashboard() {
+  currentView = "dashboard";
+  if (lastLoadedData) render(lastLoadedData);
+}
+
+function renderAskScreen() {
+  const recents = getRecentQuestions();
+  const recentHtml = recents.length
+    ? recents.map((q, i) => `
+      <div class="ask-recent-item">
+        <span class="ask-reuse-icon" onclick="reuseQuestionAt(${i})" title="Ask again">&#8634;</span>
+        <span class="ask-recent-text" onclick="reuseQuestionAt(${i})">${escapeHtml(q)}</span>
+        <span class="ask-delete-icon" onclick="deleteRecentQuestion(${i})" title="Remove">&times;</span>
+      </div>`).join("")
+    : `<div class="ask-recent-empty">No recent questions yet.</div>`;
+
+  document.getElementById("app").innerHTML = `
+    <button class="ask-back-btn" onclick="showDashboard()">&larr; Dashboard</button>
+    <div class="ask-title">Ask a Financial Question</div>
+    <div class="card ask-card">
+      <div class="ask-label">Ask a Financial Question</div>
+      <div class="ask-question-title">What would you like to ask?</div>
+      <div class="ask-subtitle">General financial education -- how rates, banks, and CDs work. Not personal advice for your specific situation.</div>
+      <textarea class="ask-textarea" id="askInput" placeholder="e.g. Why does a bank care about the Fed rate?" rows="3">${escapeHtml(lastAskQuestion)}</textarea>
+      <button class="ask-submit-btn" id="askSubmitBtn" onclick="askFinancialQuestion()">Ask</button>
+      <div id="askAnswer" class="${lastAskAnswerText ? "ask-answer-card" : ""}">${lastAskAnswerText ? escapeHtml(lastAskAnswerText).replace(/\n/g, "<br>") : ""}</div>
+    </div>
+    <div class="section">
+      <div class="ask-recent-header">
+        <span class="section-title">Recent</span>
+        ${recents.length ? `<span class="ask-clear-link" onclick="clearRecentQuestions()">Clear all</span>` : ""}
+      </div>
+      <div class="card">${recentHtml}</div>
+    </div>
+  `;
+}
+
+async function askFinancialQuestion(overrideQuestion) {
+  const input = document.getElementById("askInput");
+  const question = overrideQuestion !== undefined ? overrideQuestion : (input ? input.value.trim() : "");
+  if (!question) return;
+
+  const btn = document.getElementById("askSubmitBtn");
+  const answerEl = document.getElementById("askAnswer");
+  if (btn) { btn.disabled = true; btn.textContent = "Asking…"; }
+  if (answerEl) {
+    answerEl.className = "ask-answer-card";
+    answerEl.innerHTML = `<span class="case-placeholder">Thinking…</span>`;
+  }
+
+  try {
+    const response = await fetch(FUNCTIONS_BASE.askFinancialQuestion, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question }),
+    });
+    const result = await response.json();
+    if (!result.ok || !result.text) throw new Error(result.error || "No answer returned");
+
+    addRecentQuestion(question);
+    lastAskQuestion = question;
+    lastAskAnswerText = result.text;
+    renderAskScreen();
+  } catch (err) {
+    if (answerEl) {
+      answerEl.className = "ask-answer-card";
+      answerEl.innerHTML = `<span class="case-placeholder">Couldn't get an answer — try again. (${err.message})</span>`;
+    }
+    const btn2 = document.getElementById("askSubmitBtn");
+    if (btn2) { btn2.disabled = false; btn2.textContent = "Ask"; }
+  }
+}
+
+function reuseQuestionAt(i) {
+  const arr = getRecentQuestions();
+  const q = arr[i];
+  if (q) {
+    lastAskQuestion = q;
+    askFinancialQuestion(q);
+  }
+}
+function deleteRecentQuestion(i) {
+  const arr = getRecentQuestions();
+  arr.splice(i, 1);
+  saveRecentQuestions(arr);
+  renderAskScreen();
+}
+function clearRecentQuestions() {
+  saveRecentQuestions([]);
+  renderAskScreen();
+}
+
 async function refreshSnapshot() {
   const btn = document.getElementById("refreshBtn");
-  const dot = document.getElementById("statusDot");
-  const label = document.getElementById("refreshLabel");
+  const icon = document.getElementById("refreshIcon");
   const msg = document.getElementById("testMsg");
 
   btn.disabled = true;
-  dot.className = "status-dot busy";
-  label.textContent = "Updating…";
-  msg.textContent = "";
+  btn.classList.remove("ok", "err");
+  icon.classList.add("spinning");
+  if (msg) msg.textContent = "";
 
   try {
     const response = await fetch(FUNCTIONS_BASE.updateSnapshot, { method: "POST" });
@@ -575,13 +721,19 @@ async function refreshSnapshot() {
     if (!fresh) throw new Error("Update succeeded but snapshot could not be reloaded");
 
     render(fresh);
-    document.getElementById("statusDot").className = "status-dot ok";
-    document.getElementById("testMsg").textContent = "Updated successfully.";
+    // render() rebuilt the DOM, so re-grab the (new) button/icon before flashing success.
+    const newBtn = document.getElementById("refreshBtn");
+    const newMsg = document.getElementById("testMsg");
+    if (newBtn) {
+      newBtn.classList.add("ok");
+      setTimeout(() => newBtn.classList.remove("ok"), 1800);
+    }
+    if (newMsg) newMsg.textContent = "Updated successfully.";
   } catch (err) {
-    dot.className = "status-dot err";
-    label.textContent = "Update";
+    icon.classList.remove("spinning");
+    btn.classList.add("err");
     btn.disabled = false;
-    msg.textContent = "Update failed — kept the last snapshot. (" + err.message + ")";
+    if (msg) msg.textContent = "Update failed — kept the last snapshot. (" + err.message + ")";
   }
 }
 
@@ -593,16 +745,14 @@ async function loadAndRender() {
         <div class="eyebrow">CD Assistant</div>
         <div class="loading" style="padding-top:80px;">
           No snapshot yet.<br><br>
-          Press Update below to pull today's numbers for the first time.
+          Press the button below to pull today's numbers for the first time.
         </div>
-        <div class="update-bar" style="margin-top:24px;">
-          <span class="update-label">Snapshot</span>
-          <button class="refresh-btn" id="refreshBtn" onclick="refreshSnapshot()">
-            <span class="status-dot" id="statusDot"></span>
-            <span id="refreshLabel">Update</span>
+        <div style="display:flex; justify-content:center; margin-top:24px;">
+          <button class="header-refresh-btn" id="refreshBtn" onclick="refreshSnapshot()" title="Update">
+            <span class="header-refresh-icon" id="refreshIcon">&#8635;</span>
           </button>
         </div>
-        <div class="update-msg" id="testMsg"></div>
+        <div class="update-msg" id="testMsg" style="text-align:center; margin-top:10px;"></div>
       `;
       return;
     }
@@ -621,6 +771,7 @@ async function loadAndRender() {
 let isResumeRefreshing = false;
 async function refreshOnResume() {
   if (isResumeRefreshing) return;
+  if (currentView !== "dashboard") return; // don't clobber an in-progress question
   isResumeRefreshing = true;
   try {
     await loadAndRender();
@@ -650,6 +801,12 @@ window.setOutlookModel = setOutlookModel;
 window.generateCase = generateCase;
 window.copyCase = copyCase;
 window.refreshSnapshot = refreshSnapshot;
+window.showAskScreen = showAskScreen;
+window.showDashboard = showDashboard;
+window.askFinancialQuestion = askFinancialQuestion;
+window.reuseQuestionAt = reuseQuestionAt;
+window.deleteRecentQuestion = deleteRecentQuestion;
+window.clearRecentQuestions = clearRecentQuestions;
 
 </script>
 
