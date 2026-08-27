@@ -41,6 +41,10 @@
   .yield-row:last-child{ border-bottom:none; }
   .yield-term{ font-family:'IBM Plex Mono', monospace; font-size:10.5px; font-weight:500; color:var(--ink); }
   .yield-apy{ font-family:'IBM Plex Mono', monospace; font-size:11px; font-weight:600; font-variant-numeric: tabular-nums; color:var(--ink); }
+  .yield-right{ display:flex; flex-direction:column; align-items:flex-end; }
+  .yield-delta{ font-family:'IBM Plex Mono', monospace; font-size:9.5px; margin-top:1px; }
+  .yield-delta.delta-pos{ color:var(--steady); }
+  .yield-delta.delta-neg{ color:var(--caution); }
   .outlook-row{ display:flex; align-items:baseline; gap:7px; margin-bottom:10px; }
   .outlook-arrow{ font-size:14px; color:var(--brass); font-weight:700; flex-shrink:0; line-height:1; }
   .outlook-text{ font-family:'IBM Plex Mono', monospace; font-size:13px; font-weight:600; color:var(--ink); }
@@ -342,9 +346,20 @@ function render(data) {
   };
   const medianPos = posOnTrack(rMedian);
 
-  const yieldsHtml = data.yields.map(y =>
-    `<div class="yield-row ${y.term === '12-Month' ? 'primary' : ''}"><span class="yield-term">${y.term}</span><span class="yield-apy">${y.apy}</span></div>`
-  ).join("");
+  const parsePctY = s => parseFloat(String(s).replace('%', '')) || 0;
+  const yieldsHtml = data.yields.map(y => {
+    const tbill = data.tbills ? data.tbills[y.term] : undefined;
+    let deltaHtml = "";
+    if (tbill !== undefined && tbill !== null) {
+      const delta = parsePctY(y.apy) - tbill;
+      const cls = delta >= 0 ? "delta-pos" : "delta-neg";
+      deltaHtml = `<span class="yield-delta ${cls}">vs T-Bill at ${tbill.toFixed(2)}%</span>`;
+    }
+    return `<div class="yield-row ${y.term === '12-Month' ? 'primary' : ''}">
+      <span class="yield-term">${y.term}</span>
+      <span class="yield-right"><span class="yield-apy">${y.apy}</span>${deltaHtml}</span>
+    </div>`;
+  }).join("");
 
   const fedwatchRows = data.fedwatch.map((row, i) => {
     const p = row.probs;
@@ -473,7 +488,7 @@ function render(data) {
     </div>
     `}
 
-    <button class="ask-cta-btn" onclick="showAskScreen()">$ Ask a Financial Question</button>
+    <button class="ask-cta-btn" onclick="showAskScreen()">Ask a Financial Question</button>
   `;
 }
 
