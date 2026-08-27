@@ -22,12 +22,9 @@
     --caution-bg:#F3E7E3;
   }
   *{ box-sizing:border-box; }
-  html,body{ margin:0; padding:0; background:#DCD8CC; font-family:'IBM Plex Mono', monospace; color:var(--ink); }
-  body{ min-height:100vh; display:flex; align-items:center; justify-content:center; padding:30px 14px; }
-  .device{ width:390px; max-width:100%; border-radius:44px; background:#0d1117; padding:12px; box-shadow:0 24px 50px -18px rgba(28,43,57,0.45); }
-  .screen{ background:var(--paper); border-radius:34px; overflow:hidden; position:relative; min-height:760px; }
-  .notch{ position:absolute; top:0; left:50%; transform:translateX(-50%); width:110px; height:24px; background:#0d1117; border-bottom-left-radius:16px; border-bottom-right-radius:16px; z-index:10; }
-  .content{ padding:44px 20px 30px; }
+  html,body{ margin:0; padding:0; background:var(--paper); font-family:'IBM Plex Mono', monospace; color:var(--ink); }
+  body{ min-height:100vh; }
+  .content{ max-width:480px; margin:0 auto; padding:24px 18px 32px; }
   .eyebrow{ font-family:'IBM Plex Mono', monospace; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--brass); font-weight:600; }
   .updated{ font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--ink-soft); display:flex; align-items:center; gap:6px; margin-top:6px; }
   .dot{ width:6px; height:6px; border-radius:50%; background:var(--steady); display:inline-block; }
@@ -167,13 +164,8 @@
 </head>
 <body>
 
-<div class="device">
-  <div class="screen">
-    <div class="notch"></div>
-    <div class="content" id="app">
-      <div class="loading">Loading snapshot…</div>
-    </div>
-  </div>
+<div class="content" id="app">
+  <div class="loading">Loading snapshot…</div>
 </div>
 
 <script type="module">
