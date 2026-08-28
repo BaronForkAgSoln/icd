@@ -690,7 +690,7 @@ function renderAskScreen() {
       </div>`;
 
   let answerHtml = "";
-  if (showingTopPicksInAsk && lastLoadedData && lastLoadedData.topPicks) {
+  if (showingTopPicksInAsk && lastLoadedData && lastLoadedData.topPicks && lastLoadedData.topPicks.length) {
     const { shortText, fullParagraphs } = buildTopPicksCommentary(lastLoadedData);
     const rowsHtml = lastLoadedData.topPicks.map((p, i) => `
       <div class="pick-row">
@@ -708,6 +708,8 @@ function renderAskScreen() {
         ${picksCommentaryExpanded ? fullParagraphs.map(t => `<p style="margin:0 0 10px;">${t}</p>`).join("") : ""}
         <div class="picks-expand-link" onclick="toggleTopPicksCommentary()">${picksCommentaryExpanded ? "Show less \u25B4" : "See full reasoning \u25BE"}</div>
       </div>`;
+  } else if (showingTopPicksInAsk) {
+    answerHtml = `<div class="ask-answer-card"><span class="case-placeholder">No CD pick data yet -- press Update on the dashboard first, then come back and tap Top CD Picks again.</span></div>`;
   } else if (lastAskAnswerText) {
     answerHtml = `<div class="ask-answer-card">${escapeHtml(lastAskAnswerText).replace(/\n/g, "<br>")}</div>`;
   }
