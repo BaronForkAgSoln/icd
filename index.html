@@ -104,6 +104,13 @@
   .pick-meta{ font-size:10.5px; color:var(--ink-soft); margin-top:1px; }
   .pick-yield{ flex-shrink:0; font-size:15px; font-weight:700; color:var(--ink); text-align:right; }
   .picks-expand-link{ display:block; margin-top:10px; padding-top:10px; border-top:1px solid var(--rule-soft); font-family:'IBM Plex Mono', monospace; font-size:11px; font-weight:600; color:var(--brass); cursor:pointer; text-align:center; }
+  .picks-row-icon{ margin-left:6px; font-size:13px; color:var(--brass); cursor:pointer; vertical-align:0px; }
+  .modal-backdrop{ position:fixed; inset:0; background:rgba(28,43,57,0.45); z-index:100; display:flex; align-items:center; justify-content:center; padding:20px; }
+  .modal-panel{ background:var(--paper); border-radius:20px; max-width:420px; width:100%; max-height:82vh; overflow-y:auto; box-shadow:0 24px 50px -18px rgba(28,43,57,0.5); }
+  .modal-header{ position:sticky; top:0; display:flex; align-items:center; justify-content:space-between; padding:16px 18px 12px; background:var(--paper); border-bottom:1px solid var(--rule-soft); }
+  .modal-title{ font-family:'IBM Plex Mono', monospace; font-size:14px; font-weight:600; color:var(--ink); }
+  .modal-close{ font-size:20px; color:var(--ink-soft); cursor:pointer; line-height:1; padding:2px 6px; }
+  .modal-body{ padding:16px 18px 18px; }
   .ask-recent-item:last-child{ border-bottom:none; }
   .ask-reuse-icon{ flex-shrink:0; font-size:14px; color:var(--brass); cursor:pointer; }
   .ask-recent-text{ flex:1; font-size:12px; color:var(--ink); cursor:pointer; line-height:1.4; }
@@ -291,7 +298,7 @@ let lastLoadedData = null;
 let lastCaseText = null;
 let currentView = "dashboard"; // 'dashboard' | 'ask'
 let picksCommentaryExpanded = false;
-let showingTopPicksInAsk = false;
+let topPicksModalOpen = false;
 let lastAskQuestion = "";
 let lastAskAnswerText = null;
 
@@ -359,8 +366,10 @@ function render(data) {
       const cls = delta >= 0 ? "delta-pos" : "delta-neg";
       deltaHtml = `<span class="yield-delta ${cls}">vs T-Bill at ${tbill.toFixed(2)}%</span>`;
     }
+    const showPicksIcon = y.term === '12-Month' && data.topPicks && data.topPicks.length;
+    const picksIconHtml = showPicksIcon ? `<span class="picks-row-icon" onclick="openTopPicksModal()" title="Top CD Picks">&#9432;</span>` : "";
     return `<div class="yield-row ${y.term === '12-Month' ? 'primary' : ''}">
-      <span class="yield-term">${y.term}</span>
+      <span class="yield-term">${y.term}${picksIconHtml}</span>
       <span class="yield-right"><span class="yield-apy">${y.apy}</span>${deltaHtml}</span>
     </div>`;
   }).join("");
@@ -493,6 +502,7 @@ function render(data) {
     `}
 
     <button class="ask-cta-btn" onclick="showAskScreen()">Ask a Financial Question</button>
+    ${topPicksModalOpen ? renderTopPicksModalHtml(data) : ""}
   `;
 }
 
@@ -668,51 +678,55 @@ function buildTopPicksCommentary(data) {
   return { shortText, fullParagraphs };
 }
 
-function showTopPicksInAsk() {
-  showingTopPicksInAsk = true;
+function openTopPicksModal() {
+  topPicksModalOpen = true;
   picksCommentaryExpanded = false;
-  renderAskScreen();
+  if (lastLoadedData) render(lastLoadedData);
+}
+function closeTopPicksModal() {
+  topPicksModalOpen = false;
+  if (lastLoadedData) render(lastLoadedData);
+}
+
+function renderTopPicksModalHtml(data) {
+  const { shortText, fullParagraphs } = buildTopPicksCommentary(data);
+  const rowsHtml = (data.topPicks || []).map((p, i) => `
+    <div class="pick-row">
+      <span class="pick-rank">${i + 1}</span>
+      <div class="pick-main">
+        <div class="pick-issuer">${escapeHtml(p.issuer)}</div>
+        <div class="pick-meta">${p.insurer} &middot; Call-protected &middot; Qty ${p.qty.toLocaleString()}</div>
+      </div>
+      <div class="pick-yield">${p.yield}%</div>
+    </div>`).join("");
+
+  return `
+    <div class="modal-backdrop" onclick="if(event.target===this) closeTopPicksModal()">
+      <div class="modal-panel">
+        <div class="modal-header">
+          <span class="modal-title">Top CD Picks</span>
+          <span class="modal-close" onclick="closeTopPicksModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+          <div style="margin-bottom:12px;">${rowsHtml}</div>
+          <p style="margin:0 0 8px; font-size:13px; line-height:1.55;">${shortText}</p>
+          ${picksCommentaryExpanded ? fullParagraphs.map(t => `<p style="margin:0 0 10px; font-size:13px; line-height:1.55;">${t}</p>`).join("") : ""}
+          <div class="picks-expand-link" onclick="toggleTopPicksCommentary()">${picksCommentaryExpanded ? "Show less \u25B4" : "See full reasoning \u25BE"}</div>
+        </div>
+      </div>
+    </div>`;
 }
 
 function renderAskScreen() {
   const recents = getRecentQuestions();
-  const recentHtml = recents.map((q, i) => `
+  const recentHtml = recents.length
+    ? recents.map((q, i) => `
       <div class="ask-recent-item">
         <span class="ask-reuse-icon" onclick="reuseQuestionAt(${i})" title="Ask again">&#8634;</span>
         <span class="ask-recent-text" onclick="reuseQuestionAt(${i})">${escapeHtml(q)}</span>
         <span class="ask-delete-icon" onclick="deleteRecentQuestion(${i})" title="Remove">&times;</span>
-      </div>`).join("");
-
-  const pinnedHtml = `
-      <div class="ask-recent-item pinned" onclick="showTopPicksInAsk()">
-        <span class="pinned-icon">&#9733;</span>
-        <span class="ask-recent-text">Top CD Picks</span>
-      </div>`;
-
-  let answerHtml = "";
-  if (showingTopPicksInAsk && lastLoadedData && lastLoadedData.topPicks && lastLoadedData.topPicks.length) {
-    const { shortText, fullParagraphs } = buildTopPicksCommentary(lastLoadedData);
-    const rowsHtml = lastLoadedData.topPicks.map((p, i) => `
-      <div class="pick-row">
-        <span class="pick-rank">${i + 1}</span>
-        <div class="pick-main">
-          <div class="pick-issuer">${escapeHtml(p.issuer)}</div>
-          <div class="pick-meta">${p.insurer} &middot; Call-protected &middot; Qty ${p.qty.toLocaleString()}</div>
-        </div>
-        <div class="pick-yield">${p.yield}%</div>
-      </div>`).join("");
-    answerHtml = `
-      <div class="ask-answer-card">
-        <div style="margin:-2px 0 12px;">${rowsHtml}</div>
-        <p style="margin:0 0 8px;">${shortText}</p>
-        ${picksCommentaryExpanded ? fullParagraphs.map(t => `<p style="margin:0 0 10px;">${t}</p>`).join("") : ""}
-        <div class="picks-expand-link" onclick="toggleTopPicksCommentary()">${picksCommentaryExpanded ? "Show less \u25B4" : "See full reasoning \u25BE"}</div>
-      </div>`;
-  } else if (showingTopPicksInAsk) {
-    answerHtml = `<div class="ask-answer-card"><span class="case-placeholder">No CD pick data yet -- press Update on the dashboard first, then come back and tap Top CD Picks again.</span></div>`;
-  } else if (lastAskAnswerText) {
-    answerHtml = `<div class="ask-answer-card">${escapeHtml(lastAskAnswerText).replace(/\n/g, "<br>")}</div>`;
-  }
+      </div>`).join("")
+    : `<div class="ask-recent-empty">No recent questions yet.</div>`;
 
   document.getElementById("app").innerHTML = `
     <button class="ask-back-btn" onclick="showDashboard()">&larr; Dashboard</button>
@@ -723,21 +737,21 @@ function renderAskScreen() {
       <div class="ask-subtitle">General financial education -- how rates, banks, and CDs work. Not personal advice for your specific situation.</div>
       <textarea class="ask-textarea" id="askInput" placeholder="e.g. Why does a bank care about the Fed rate?" rows="3">${escapeHtml(lastAskQuestion)}</textarea>
       <button class="ask-submit-btn" id="askSubmitBtn" onclick="askFinancialQuestion()">Ask</button>
-      <div id="askAnswer">${answerHtml}</div>
+      <div id="askAnswer" class="${lastAskAnswerText ? "ask-answer-card" : ""}">${lastAskAnswerText ? escapeHtml(lastAskAnswerText).replace(/\n/g, "<br>") : ""}</div>
     </div>
     <div class="section">
       <div class="ask-recent-header">
         <span class="section-title">Recent</span>
         ${recents.length ? `<span class="ask-clear-link" onclick="clearRecentQuestions()">Clear all</span>` : ""}
       </div>
-      <div class="card">${pinnedHtml}${recentHtml || `<div class="ask-recent-empty">No other recent questions yet.</div>`}</div>
+      <div class="card">${recentHtml}</div>
     </div>
   `;
 }
 
 function toggleTopPicksCommentary() {
   picksCommentaryExpanded = !picksCommentaryExpanded;
-  renderAskScreen();
+  if (lastLoadedData) render(lastLoadedData);
 }
 
 async function askFinancialQuestion(overrideQuestion) {
@@ -745,7 +759,6 @@ async function askFinancialQuestion(overrideQuestion) {
   const question = overrideQuestion !== undefined ? overrideQuestion : (input ? input.value.trim() : "");
   if (!question) return;
 
-  showingTopPicksInAsk = false;
   const btn = document.getElementById("askSubmitBtn");
   const answerEl = document.getElementById("askAnswer");
   if (btn) { btn.disabled = true; btn.textContent = "Asking…"; }
@@ -903,7 +916,8 @@ window.askFinancialQuestion = askFinancialQuestion;
 window.reuseQuestionAt = reuseQuestionAt;
 window.deleteRecentQuestion = deleteRecentQuestion;
 window.clearRecentQuestions = clearRecentQuestions;
-window.showTopPicksInAsk = showTopPicksInAsk;
+window.openTopPicksModal = openTopPicksModal;
+window.closeTopPicksModal = closeTopPicksModal;
 window.toggleTopPicksCommentary = toggleTopPicksCommentary;
 
 </script>
