@@ -90,7 +90,8 @@
   .ask-textarea{ width:100%; min-height:64px; padding:10px; font-family:'IBM Plex Mono', monospace; font-size:13px; color:var(--ink); background:var(--paper); border:1.5px solid var(--brass); border-radius:10px; resize:vertical; margin-bottom:10px; box-sizing:border-box; }
   .ask-submit-btn{ width:100%; padding:11px; font-family:'IBM Plex Mono', monospace; font-size:13px; font-weight:600; color:#FBFAF7; background:var(--brass); border:none; border-radius:999px; cursor:pointer; }
   .ask-submit-btn:disabled{ opacity:0.6; cursor:default; }
-  .ask-answer-card{ margin-top:14px; padding-top:14px; border-top:1px solid var(--rule-soft); font-size:13px; color:var(--ink); line-height:1.55; }
+  .ask-answer-card{ position:relative; margin-top:14px; padding:14px 26px 0 0; border-top:1px solid var(--rule-soft); font-size:13px; color:var(--ink); line-height:1.55; }
+  .ask-answer-close{ position:absolute; top:14px; right:0; font-size:16px; color:var(--ink-soft); cursor:pointer; line-height:1; padding:0 2px; }
   .ask-recent-header{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
   .ask-clear-link{ font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--ink-soft); cursor:pointer; text-decoration:underline; }
   .ask-recent-item{ display:flex; align-items:center; gap:10px; padding:11px 16px; border-bottom:1px solid var(--rule-soft); }
@@ -717,6 +718,11 @@ function renderTopPicksModalHtml(data) {
     </div>`;
 }
 
+function closeAskAnswer() {
+  lastAskAnswerText = null;
+  renderAskScreen();
+}
+
 function renderAskScreen() {
   const recents = getRecentQuestions();
   const recentHtml = recents.length
@@ -737,7 +743,7 @@ function renderAskScreen() {
       <div class="ask-subtitle">General financial education -- how rates, banks, and CDs work. Not personal advice for your specific situation.</div>
       <textarea class="ask-textarea" id="askInput" placeholder="e.g. Why does a bank care about the Fed rate?" rows="3">${escapeHtml(lastAskQuestion)}</textarea>
       <button class="ask-submit-btn" id="askSubmitBtn" onclick="askFinancialQuestion()">Ask</button>
-      <div id="askAnswer" class="${lastAskAnswerText ? "ask-answer-card" : ""}">${lastAskAnswerText ? escapeHtml(lastAskAnswerText).replace(/\n/g, "<br>") : ""}</div>
+      <div id="askAnswer" class="${lastAskAnswerText ? "ask-answer-card" : ""}">${lastAskAnswerText ? `<span class="ask-answer-close" onclick="closeAskAnswer()" title="Close">&times;</span>${escapeHtml(lastAskAnswerText).replace(/\n/g, "<br>")}` : ""}</div>
     </div>
     <div class="section">
       <div class="ask-recent-header">
@@ -916,6 +922,7 @@ window.askFinancialQuestion = askFinancialQuestion;
 window.reuseQuestionAt = reuseQuestionAt;
 window.deleteRecentQuestion = deleteRecentQuestion;
 window.clearRecentQuestions = clearRecentQuestions;
+window.closeAskAnswer = closeAskAnswer;
 window.openTopPicksModal = openTopPicksModal;
 window.closeTopPicksModal = closeTopPicksModal;
 window.toggleTopPicksCommentary = toggleTopPicksCommentary;
