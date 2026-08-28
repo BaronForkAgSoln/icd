@@ -94,6 +94,16 @@
   .ask-recent-header{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
   .ask-clear-link{ font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--ink-soft); cursor:pointer; text-decoration:underline; }
   .ask-recent-item{ display:flex; align-items:center; gap:10px; padding:11px 16px; border-bottom:1px solid var(--rule-soft); }
+  .ask-recent-item.pinned{ background:#F3ECDD; cursor:pointer; }
+  .pinned-icon{ flex-shrink:0; font-size:13px; color:var(--brass); }
+  .pick-row{ display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid var(--rule-soft); }
+  .pick-row:last-child{ border-bottom:none; }
+  .pick-rank{ flex-shrink:0; width:22px; height:22px; border-radius:50%; background:var(--steady); color:#FBFAF7; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; }
+  .pick-main{ flex:1; }
+  .pick-issuer{ font-size:12.5px; font-weight:600; color:var(--ink); }
+  .pick-meta{ font-size:10.5px; color:var(--ink-soft); margin-top:1px; }
+  .pick-yield{ flex-shrink:0; font-size:15px; font-weight:700; color:var(--ink); text-align:right; }
+  .picks-expand-link{ display:block; margin-top:10px; padding-top:10px; border-top:1px solid var(--rule-soft); font-family:'IBM Plex Mono', monospace; font-size:11px; font-weight:600; color:var(--brass); cursor:pointer; text-align:center; }
   .ask-recent-item:last-child{ border-bottom:none; }
   .ask-reuse-icon{ flex-shrink:0; font-size:14px; color:var(--brass); cursor:pointer; }
   .ask-recent-text{ flex:1; font-size:12px; color:var(--ink); cursor:pointer; line-height:1.4; }
@@ -280,6 +290,8 @@ let currentOutlookModel = "customer";
 let lastLoadedData = null;
 let lastCaseText = null;
 let currentView = "dashboard"; // 'dashboard' | 'ask'
+let picksCommentaryExpanded = false;
+let showingTopPicksInAsk = false;
 let lastAskQuestion = "";
 let lastAskAnswerText = null;
 
@@ -620,16 +632,85 @@ function showDashboard() {
   if (lastLoadedData) render(lastLoadedData);
 }
 
+// ---- Top CD Picks -- fully computed from real data, no AI involved ----
+// Every fact here (call-protection, insurer type, the excluded callable
+// comparison) is computed server-side from the Fidelity CSV, same as the
+// 5-term yields. Deliberately templated, not AI-generated, since every
+// sentence is a verifiable fact -- same reasoning that moved FedWatch and
+// Fidelity's own numbers off AI search earlier this session.
+function buildTopPicksCommentary(data) {
+  const picks = data.topPicks || [];
+  const excluded = data.topPicksExcludedCallable;
+  const insurerSet = new Set(picks.map(p => p.insurer));
+  const sameInsurer = insurerSet.size === 1 ? [...insurerSet][0] : null;
+
+  const shortText = picks.length === 0
+    ? "No qualifying candidates found in the latest Fidelity data."
+    : sameInsurer
+    ? `All ${picks.length} top picks are call-protected, ${sameInsurer}-insured CDs at ${picks[0].yield}%.${excluded ? ` The only callable offer in the top 10 (${excluded.issuer}, ${excluded.yield}%) was excluded${excluded.wouldHaveOutranked ? "." : " -- its rate wouldn't have beaten these anyway."}` : ""}`
+    : `Top ${picks.length} picks span ${[...insurerSet].join(" and ")} coverage, all call-protected, led by ${picks[0].yield}%.`;
+
+  const fullParagraphs = [
+    `Ranked using three rules, in order: exclude anything callable first, since a callable CD's higher rate is compensation for the issuer's option to redeem early if rates fall -- not free extra return. Sort what's left by yield. Use available quantity as a tiebreaker only, since it signals how likely an offer is to still be there when you actually order, not how safe it is.`,
+    sameInsurer
+      ? `All ${picks.length} top picks happen to be ${sameInsurer}-insured credit union CDs this week, tied at ${picks[0].yield}%. That's not a safety signal either way -- ${sameInsurer} insurance provides essentially the same protection as FDIC (same $250,000 per-depositor coverage, same federal backing) -- it's simply where the best rate happens to sit right now.`
+      : `This week's top picks span both ${[...insurerSet].join(" and ")} coverage -- both provide equivalent federal deposit insurance up to $250,000 per depositor.`,
+  ];
+  if (excluded) {
+    fullParagraphs.push(
+      `${excluded.issuer} offered ${excluded.yield}% -- the best rate among callable CDs in the list -- but was excluded because it isn't call-protected. ${excluded.wouldHaveOutranked ? "Its yield would have outranked these picks on rate alone, which is exactly why the callable filter matters." : "Its rate wouldn't have outranked any of these picks anyway, so excluding it costs nothing this week."}`
+    );
+  }
+  fullParagraphs.push(
+    `One practical note if a top pick is a credit union: buying it directly usually requires membership eligibility, but purchasing through a brokerage like Fidelity typically handles that automatically -- worth a quick confirmation with Fidelity if this is new to you.`
+  );
+
+  return { shortText, fullParagraphs };
+}
+
+function showTopPicksInAsk() {
+  showingTopPicksInAsk = true;
+  picksCommentaryExpanded = false;
+  renderAskScreen();
+}
+
 function renderAskScreen() {
   const recents = getRecentQuestions();
-  const recentHtml = recents.length
-    ? recents.map((q, i) => `
+  const recentHtml = recents.map((q, i) => `
       <div class="ask-recent-item">
         <span class="ask-reuse-icon" onclick="reuseQuestionAt(${i})" title="Ask again">&#8634;</span>
         <span class="ask-recent-text" onclick="reuseQuestionAt(${i})">${escapeHtml(q)}</span>
         <span class="ask-delete-icon" onclick="deleteRecentQuestion(${i})" title="Remove">&times;</span>
-      </div>`).join("")
-    : `<div class="ask-recent-empty">No recent questions yet.</div>`;
+      </div>`).join("");
+
+  const pinnedHtml = `
+      <div class="ask-recent-item pinned" onclick="showTopPicksInAsk()">
+        <span class="pinned-icon">&#9733;</span>
+        <span class="ask-recent-text">Top CD Picks</span>
+      </div>`;
+
+  let answerHtml = "";
+  if (showingTopPicksInAsk && lastLoadedData && lastLoadedData.topPicks) {
+    const { shortText, fullParagraphs } = buildTopPicksCommentary(lastLoadedData);
+    const rowsHtml = lastLoadedData.topPicks.map((p, i) => `
+      <div class="pick-row">
+        <span class="pick-rank">${i + 1}</span>
+        <div class="pick-main">
+          <div class="pick-issuer">${escapeHtml(p.issuer)}</div>
+          <div class="pick-meta">${p.insurer} &middot; Call-protected &middot; Qty ${p.qty.toLocaleString()}</div>
+        </div>
+        <div class="pick-yield">${p.yield}%</div>
+      </div>`).join("");
+    answerHtml = `
+      <div class="ask-answer-card">
+        <div style="margin:-2px 0 12px;">${rowsHtml}</div>
+        <p style="margin:0 0 8px;">${shortText}</p>
+        ${picksCommentaryExpanded ? fullParagraphs.map(t => `<p style="margin:0 0 10px;">${t}</p>`).join("") : ""}
+        <div class="picks-expand-link" onclick="toggleTopPicksCommentary()">${picksCommentaryExpanded ? "Show less \u25B4" : "See full reasoning \u25BE"}</div>
+      </div>`;
+  } else if (lastAskAnswerText) {
+    answerHtml = `<div class="ask-answer-card">${escapeHtml(lastAskAnswerText).replace(/\n/g, "<br>")}</div>`;
+  }
 
   document.getElementById("app").innerHTML = `
     <button class="ask-back-btn" onclick="showDashboard()">&larr; Dashboard</button>
@@ -640,16 +721,21 @@ function renderAskScreen() {
       <div class="ask-subtitle">General financial education -- how rates, banks, and CDs work. Not personal advice for your specific situation.</div>
       <textarea class="ask-textarea" id="askInput" placeholder="e.g. Why does a bank care about the Fed rate?" rows="3">${escapeHtml(lastAskQuestion)}</textarea>
       <button class="ask-submit-btn" id="askSubmitBtn" onclick="askFinancialQuestion()">Ask</button>
-      <div id="askAnswer" class="${lastAskAnswerText ? "ask-answer-card" : ""}">${lastAskAnswerText ? escapeHtml(lastAskAnswerText).replace(/\n/g, "<br>") : ""}</div>
+      <div id="askAnswer">${answerHtml}</div>
     </div>
     <div class="section">
       <div class="ask-recent-header">
         <span class="section-title">Recent</span>
         ${recents.length ? `<span class="ask-clear-link" onclick="clearRecentQuestions()">Clear all</span>` : ""}
       </div>
-      <div class="card">${recentHtml}</div>
+      <div class="card">${pinnedHtml}${recentHtml || `<div class="ask-recent-empty">No other recent questions yet.</div>`}</div>
     </div>
   `;
+}
+
+function toggleTopPicksCommentary() {
+  picksCommentaryExpanded = !picksCommentaryExpanded;
+  renderAskScreen();
 }
 
 async function askFinancialQuestion(overrideQuestion) {
@@ -657,6 +743,7 @@ async function askFinancialQuestion(overrideQuestion) {
   const question = overrideQuestion !== undefined ? overrideQuestion : (input ? input.value.trim() : "");
   if (!question) return;
 
+  showingTopPicksInAsk = false;
   const btn = document.getElementById("askSubmitBtn");
   const answerEl = document.getElementById("askAnswer");
   if (btn) { btn.disabled = true; btn.textContent = "Asking…"; }
@@ -814,6 +901,8 @@ window.askFinancialQuestion = askFinancialQuestion;
 window.reuseQuestionAt = reuseQuestionAt;
 window.deleteRecentQuestion = deleteRecentQuestion;
 window.clearRecentQuestions = clearRecentQuestions;
+window.showTopPicksInAsk = showTopPicksInAsk;
+window.toggleTopPicksCommentary = toggleTopPicksCommentary;
 
 </script>
 
