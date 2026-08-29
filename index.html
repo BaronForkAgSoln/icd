@@ -774,10 +774,14 @@ async function askFinancialQuestion(overrideQuestion) {
   }
 
   try {
+    const context = lastLoadedData ? {
+      inflation: lastLoadedData.inflation,
+      median: lastLoadedData.range12mo ? lastLoadedData.range12mo.median : undefined,
+    } : undefined;
     const response = await fetch(FUNCTIONS_BASE.askFinancialQuestion, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question }),
+      body: JSON.stringify({ question, context }),
     });
     const result = await response.json();
     if (!result.ok || !result.text) throw new Error(result.error || "No answer returned");
