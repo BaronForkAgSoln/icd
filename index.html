@@ -93,6 +93,11 @@
   .ask-answer-card{ position:relative; margin-top:14px; padding:14px 26px 0 0; border-top:1px solid var(--rule-soft); font-size:13px; color:var(--ink); line-height:1.55; }
   .ask-answer-close{ position:absolute; top:14px; right:0; font-size:16px; color:var(--ink-soft); cursor:pointer; line-height:1; padding:0 2px; }
   .ask-recent-header{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .today-q-card{ display:flex; align-items:center; gap:12px; padding:16px; background:var(--paper-raised); border:1.5px solid var(--brass); border-radius:16px; cursor:pointer; }
+  .today-q-main{ flex:1; }
+  .today-q-label{ font-family:'IBM Plex Mono', monospace; font-size:10px; letter-spacing:0.08em; text-transform:uppercase; color:var(--brass); font-weight:600; margin-bottom:4px; }
+  .today-q-text{ font-size:14px; font-weight:600; color:var(--ink); line-height:1.4; }
+  .today-q-arrow{ flex-shrink:0; font-size:18px; color:var(--brass); }
   .ask-clear-link{ font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--ink-soft); cursor:pointer; text-decoration:underline; }
   .ask-recent-item{ display:flex; align-items:center; gap:10px; padding:11px 16px; border-bottom:1px solid var(--rule-soft); }
   .ask-recent-item.pinned{ background:#F3ECDD; cursor:pointer; }
@@ -723,6 +728,105 @@ function closeAskAnswer() {
   renderAskScreen();
 }
 
+// Knowledge Builder -- a fixed, hand-curated 60-question set in strict
+// difficulty order (Level 1 Foundations through Bonus Expert-Level).
+// Position persists in localStorage; tapping asks the current question for
+// real, then silently advances to the next -- wrapping back to the start
+// after the last one. No visible progress indicator, by design -- progress
+// is meant to feel intrinsic, not tracked. Pool started August 2026;
+// worth reassessing and refreshing the set around six months from launch.
+const KNOWLEDGE_BUILDER_QUESTIONS = [
+  // Level 1: Foundations
+  "What is a Certificate of Deposit (CD)?",
+  "What is a Treasury Bill (T-Bill)?",
+  "Who issues CDs?",
+  "Who issues T-Bills?",
+  "Why do banks offer CDs?",
+  "Why does the U.S. Treasury issue T-Bills?",
+  "How does a CD earn money for investors?",
+  "How does a T-Bill earn money for investors?",
+  "What is the difference between savings accounts, CDs, and T-Bills?",
+  "Why do investors consider CDs and T-Bills to be low-risk investments?",
+  // Level 2: Understanding CDs
+  "How does a bank determine CD interest rates?",
+  "What is the difference between a fixed-rate CD and a variable-rate CD?",
+  "What does \"CD term length\" mean?",
+  "How do 3-month, 6-month, 1-year, and 5-year CDs compare?",
+  "What happens when a CD matures?",
+  "What is an early withdrawal penalty?",
+  "How is interest calculated on a CD?",
+  "What does APY (Annual Percentage Yield) mean?",
+  "Are CDs FDIC insured, and what are the limits?",
+  "When is a CD a better choice than a savings account?",
+  "Why do banks sometimes offer odd-length CDs, like 13 or 18 months, instead of standard terms?",
+  "Why do banks sometimes pay interest monthly, quarterly, semi-annually, or at maturity?",
+  "What is a \"step-up\" CD, and how is it different from a regular one?",
+  "Why might a bank offer a \"relationship rate\" bonus on a CD?",
+  // Level 3: Understanding T-Bills
+  "What is the difference between 4-week, 8-week, 13-week, 26-week, and 52-week T-Bills?",
+  "What does it mean that T-Bills are sold at a discount?",
+  "How is the return on a T-Bill calculated?",
+  "What is a T-Bill yield?",
+  "Why does the Treasury sell T-Bills through auctions?",
+  "How do Treasury auctions work?",
+  "What is the difference between competitive and noncompetitive bids?",
+  "What happens when a T-Bill matures?",
+  "Can T-Bills be sold before maturity?",
+  "Why are T-Bills often considered the closest thing to a risk-free investment?",
+  // Level 4: Comparing CDs and T-Bills
+  "Which is safer: a CD or a T-Bill?",
+  "Why do CD rates sometimes exceed T-Bill yields?",
+  "Why do T-Bill yields sometimes exceed CD rates?",
+  "How does liquidity differ between CDs and T-Bills?",
+  "Which investment is easier to buy?",
+  "How do taxes differ between CDs and T-Bills?",
+  "How do state income taxes affect the comparison?",
+  "Under what conditions would an investor choose a CD over a T-Bill?",
+  "Under what conditions would an investor choose a T-Bill over a CD?",
+  "How does inflation affect the real return of both investments?",
+  // Level 5: Interest Rates and the Federal Reserve
+  "How does the Federal Funds Rate influence CD rates?",
+  "How does the Federal Funds Rate influence T-Bill yields?",
+  "Why do T-Bill yields react quickly to Fed policy changes?",
+  "Why do bank CD rates often lag behind changes in Fed rates?",
+  "What can the spread between CD rates and T-Bill yields tell us about the economy?",
+  // Level 6: Intermediate Investor Concepts
+  "What is a CD ladder, and why do investors use one?",
+  "What is a T-Bill ladder, and how does it work?",
+  "How can an investor use a mix of CDs, T-Bills, and savings accounts to manage cash?",
+  "How should a retiree think differently about CDs and T-Bills than a younger investor?",
+  "What indicators should investors monitor regularly to identify the best opportunities between CDs and T-Bills?",
+  "Why does a bank sometimes need to escalate a rate-match request to a manager?",
+  // Bonus: Expert-Level
+  "How does the Treasury yield curve affect T-Bill investment decisions?",
+  "What does an inverted yield curve imply for CD and T-Bill strategies?",
+  "How do money market funds compare to directly owning T-Bills?",
+  "How do banks decide whether to raise or lower CD rates relative to Treasury yields?",
+  "How should an investor build a cash-management strategy across savings accounts, CDs, T-Bills, money market funds, and bond funds?",
+];
+
+const KB_POSITION_KEY = "icd_kb_position";
+
+function getKnowledgeBuilderPosition() {
+  try {
+    const stored = parseInt(localStorage.getItem(KB_POSITION_KEY), 10);
+    if (!isNaN(stored) && stored >= 0 && stored < KNOWLEDGE_BUILDER_QUESTIONS.length) return stored;
+  } catch (e) { /* ignore */ }
+  return 0;
+}
+function setKnowledgeBuilderPosition(pos) {
+  try { localStorage.setItem(KB_POSITION_KEY, String(pos)); } catch (e) { /* ignore */ }
+}
+function getKnowledgeBuilderQuestion() {
+  return KNOWLEDGE_BUILDER_QUESTIONS[getKnowledgeBuilderPosition()];
+}
+function askKnowledgeBuilderQuestion() {
+  const current = getKnowledgeBuilderQuestion();
+  const nextPos = (getKnowledgeBuilderPosition() + 1) % KNOWLEDGE_BUILDER_QUESTIONS.length;
+  setKnowledgeBuilderPosition(nextPos);
+  askFinancialQuestion(current);
+}
+
 function renderAskScreen() {
   const recents = getRecentQuestions();
   const recentHtml = recents.length
@@ -745,6 +849,15 @@ function renderAskScreen() {
       <button class="ask-submit-btn" id="askSubmitBtn" onclick="askFinancialQuestion()">Ask</button>
       <div id="askAnswer" class="${lastAskAnswerText ? "ask-answer-card" : ""}">${lastAskAnswerText ? `<span class="ask-answer-close" onclick="closeAskAnswer()" title="Close">&times;</span>${escapeHtml(lastAskAnswerText).replace(/\n/g, "<br>")}` : ""}</div>
     </div>
+
+    <div class="today-q-card" onclick="askKnowledgeBuilderQuestion()">
+      <div class="today-q-main">
+        <div class="today-q-label">Knowledge Builder</div>
+        <div class="today-q-text">${escapeHtml(getKnowledgeBuilderQuestion())}</div>
+      </div>
+      <span class="today-q-arrow">&#8594;</span>
+    </div>
+
     <div class="section">
       <div class="ask-recent-header">
         <span class="section-title">Recent</span>
@@ -926,6 +1039,7 @@ window.askFinancialQuestion = askFinancialQuestion;
 window.reuseQuestionAt = reuseQuestionAt;
 window.deleteRecentQuestion = deleteRecentQuestion;
 window.clearRecentQuestions = clearRecentQuestions;
+window.askKnowledgeBuilderQuestion = askKnowledgeBuilderQuestion;
 window.closeAskAnswer = closeAskAnswer;
 window.openTopPicksModal = openTopPicksModal;
 window.closeTopPicksModal = closeTopPicksModal;
