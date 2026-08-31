@@ -87,7 +87,9 @@
   .ask-label{ font-family:'IBM Plex Mono', monospace; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--brass); font-weight:600; margin-bottom:8px; }
   .ask-question-title{ font-family:'IBM Plex Mono', monospace; font-size:13px; font-weight:600; color:var(--ink); margin-bottom:4px; }
   .ask-subtitle{ font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--ink-soft); line-height:1.5; margin-bottom:12px; }
-  .ask-textarea{ width:100%; min-height:64px; padding:10px; font-family:'IBM Plex Mono', monospace; font-size:13px; color:var(--ink); background:var(--paper); border:1.5px solid var(--brass); border-radius:10px; resize:vertical; margin-bottom:10px; box-sizing:border-box; }
+  .ask-input-wrap{ position:relative; margin-bottom:10px; }
+  .ask-textarea{ width:100%; min-height:64px; padding:10px 32px 10px 10px; font-family:'IBM Plex Mono', monospace; font-size:13px; color:var(--ink); background:var(--paper); border:1.5px solid var(--brass); border-radius:10px; resize:vertical; box-sizing:border-box; }
+  .ask-input-clear{ position:absolute; top:8px; right:8px; font-size:16px; color:var(--ink-soft); cursor:pointer; line-height:1; padding:2px 4px; }
   .ask-submit-btn{ width:100%; padding:11px; font-family:'IBM Plex Mono', monospace; font-size:13px; font-weight:600; color:#FBFAF7; background:var(--brass); border:none; border-radius:999px; cursor:pointer; }
   .ask-submit-btn:disabled{ opacity:0.6; cursor:default; }
   .ask-answer-card{ position:relative; margin-top:14px; padding:14px 26px 0 0; border-top:1px solid var(--rule-soft); font-size:13px; color:var(--ink); line-height:1.55; }
@@ -723,6 +725,15 @@ function renderTopPicksModalHtml(data) {
     </div>`;
 }
 
+function clearAskInput() {
+  lastAskQuestion = "";
+  const input = document.getElementById("askInput");
+  if (input) {
+    input.value = "";
+    input.focus();
+  }
+}
+
 function closeAskAnswer() {
   lastAskAnswerText = null;
   renderAskScreen();
@@ -845,7 +856,10 @@ function renderAskScreen() {
       <div class="ask-label">Ask a Financial Question</div>
       <div class="ask-question-title">What would you like to ask?</div>
       <div class="ask-subtitle">General financial education -- how rates, banks, and CDs work. Not personal advice for your specific situation.</div>
-      <textarea class="ask-textarea" id="askInput" placeholder="e.g. Why does a bank care about the Fed rate?" rows="3">${escapeHtml(lastAskQuestion)}</textarea>
+      <div class="ask-input-wrap">
+        <textarea class="ask-textarea" id="askInput" placeholder="e.g. Why does a bank care about the Fed rate?" rows="3">${escapeHtml(lastAskQuestion)}</textarea>
+        <span class="ask-input-clear" onclick="clearAskInput()" title="Clear">&times;</span>
+      </div>
       <button class="ask-submit-btn" id="askSubmitBtn" onclick="askFinancialQuestion()">Ask</button>
       <div id="askAnswer" class="${lastAskAnswerText ? "ask-answer-card" : ""}">${lastAskAnswerText ? `<span class="ask-answer-close" onclick="closeAskAnswer()" title="Close">&times;</span>${escapeHtml(lastAskAnswerText).replace(/\n/g, "<br>")}` : ""}</div>
     </div>
@@ -1041,6 +1055,7 @@ window.deleteRecentQuestion = deleteRecentQuestion;
 window.clearRecentQuestions = clearRecentQuestions;
 window.askKnowledgeBuilderQuestion = askKnowledgeBuilderQuestion;
 window.closeAskAnswer = closeAskAnswer;
+window.clearAskInput = clearAskInput;
 window.openTopPicksModal = openTopPicksModal;
 window.closeTopPicksModal = closeTopPicksModal;
 window.toggleTopPicksCommentary = toggleTopPicksCommentary;
