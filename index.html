@@ -112,6 +112,13 @@
   .pick-meta{ font-size:10.5px; color:var(--ink-soft); margin-top:1px; }
   .pick-yield{ flex-shrink:0; font-size:15px; font-weight:700; color:var(--ink); text-align:right; }
   .picks-expand-link{ display:block; margin-top:10px; padding-top:10px; border-top:1px solid var(--rule-soft); font-family:'IBM Plex Mono', monospace; font-size:11px; font-weight:600; color:var(--brass); cursor:pointer; text-align:center; }
+  .indicators-btn{ display:flex; align-items:center; justify-content:center; gap:8px; width:100%; margin-top:16px; padding:13px; font-family:'IBM Plex Mono', monospace; font-size:12px; font-weight:600; color:var(--brass); background:var(--paper-raised); border:1.5px solid var(--brass); border-radius:14px; cursor:pointer; }
+  .indicator-row{ display:flex; align-items:baseline; justify-content:space-between; padding:12px 0; border-bottom:1px solid var(--rule-soft); }
+  .indicator-row:last-child{ border-bottom:none; }
+  .indicator-name{ font-size:13px; font-weight:600; color:var(--ink); }
+  .indicator-right{ text-align:right; }
+  .indicator-value{ font-size:15px; font-weight:700; color:var(--ink); }
+  .indicator-date{ font-size:10px; color:var(--ink-soft); margin-top:1px; }
   .picks-row-icon{ margin-left:6px; font-size:13px; color:var(--brass); cursor:pointer; vertical-align:0px; }
   .modal-backdrop{ position:fixed; inset:0; background:rgba(28,43,57,0.45); z-index:100; display:flex; align-items:center; justify-content:center; padding:20px; }
   .modal-panel{ background:var(--paper); border-radius:20px; max-width:420px; width:100%; max-height:82vh; overflow-y:auto; box-shadow:0 24px 50px -18px rgba(28,43,57,0.5); }
@@ -307,6 +314,7 @@ let lastCaseText = null;
 let currentView = "dashboard"; // 'dashboard' | 'ask'
 let picksCommentaryExpanded = false;
 let topPicksModalOpen = false;
+let indicatorsModalOpen = false;
 let lastAskQuestion = "";
 let lastAskAnswerText = null;
 
@@ -334,7 +342,7 @@ async function loadSnapshot() {
   // A fresh document created before any real Update has ever run (see the
   // security-rules setup) only has a placeholder field -- treat that as "no
   // real data yet" too, not as a snapshot to render.
-  if (!data.yields || !data.fedwatch || !data.bankrate) return null;
+  if (!data.yields || !data.fedwatch) return null;
   return data;
 }
 
@@ -494,23 +502,13 @@ function render(data) {
 
       </div>
     </div>
-    ` : `
-    <div class="section">
-      <div class="section-head">
-        <div class="section-title">Bankrate Forecast</div>
-      </div>
-      <div class="card br-card">
-        <div class="br-top">
-          <span class="br-pill ${pillClass(data.bankrate.pill)}">${data.bankrate.pill}</span>
-          <span class="br-pub">${data.bankrate.published}</span>
-        </div>
-        <div class="br-text">${data.bankrate.text}</div>
-      </div>
-    </div>
-    `}
+    ` : ``}
+
+    <button class="indicators-btn" onclick="openIndicatorsModal()">Key Economic Indicators</button>
 
     <button class="ask-cta-btn" onclick="showAskScreen()">Ask a Financial Question</button>
     ${topPicksModalOpen ? renderTopPicksModalHtml(data) : ""}
+    ${indicatorsModalOpen ? renderIndicatorsModalHtml(data) : ""}
   `;
 }
 
@@ -694,6 +692,37 @@ function openTopPicksModal() {
 function closeTopPicksModal() {
   topPicksModalOpen = false;
   if (lastLoadedData) render(lastLoadedData);
+}
+
+function openIndicatorsModal() {
+  indicatorsModalOpen = true;
+  if (lastLoadedData) render(lastLoadedData);
+}
+function closeIndicatorsModal() {
+  indicatorsModalOpen = false;
+  if (lastLoadedData) render(lastLoadedData);
+}
+function renderIndicatorsModalHtml(data) {
+  const indicators = data.indicators || [];
+  const rowsHtml = indicators.length ? indicators.map(ind => `
+    <div class="indicator-row">
+      <span class="indicator-name">${escapeHtml(ind.name)}</span>
+      <div class="indicator-right">
+        <div class="indicator-value">${escapeHtml(ind.value)}</div>
+        <div class="indicator-date">as of ${escapeHtml(ind.asOf)}</div>
+      </div>
+    </div>`).join("") : `<div class="ask-recent-empty">No indicator data yet -- press Update first.</div>`;
+
+  return `
+    <div class="modal-backdrop" onclick="if(event.target===this) closeIndicatorsModal()">
+      <div class="modal-panel">
+        <div class="modal-header">
+          <span class="modal-title">Key Economic Indicators</span>
+          <span class="modal-close" onclick="closeIndicatorsModal()">&times;</span>
+        </div>
+        <div class="modal-body">${rowsHtml}</div>
+      </div>
+    </div>`;
 }
 
 function renderTopPicksModalHtml(data) {
@@ -1058,6 +1087,8 @@ window.closeAskAnswer = closeAskAnswer;
 window.clearAskInput = clearAskInput;
 window.openTopPicksModal = openTopPicksModal;
 window.closeTopPicksModal = closeTopPicksModal;
+window.openIndicatorsModal = openIndicatorsModal;
+window.closeIndicatorsModal = closeIndicatorsModal;
 window.toggleTopPicksCommentary = toggleTopPicksCommentary;
 
 </script>
